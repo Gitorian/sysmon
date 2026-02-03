@@ -5,8 +5,8 @@ Lightweight Windows system monitor for GPU/CPU/RAM/VRAM.
 ## Features
 
 - Below-normal thread priority to avoid interfering with other programs
-- Real-time monitoring: GPU, CPU, RAM, VRAM, GPU temperature (NVIDIA only)
-- Runs without GPU metrics on systems where NVML is not available (e.g. AMD-only setups)
+- Real-time monitoring: GPU, CPU, RAM, VRAM, GPU temperature
+- Auto-detects NVIDIA or AMD GPUs, falls back to CPU/RAM only
 - Three display modes: Minimal, Graph, Headless
 - Automatic CSV logging with timestamps
 - Visual warnings when GPU hits 95%+ utilization
@@ -14,7 +14,7 @@ Lightweight Windows system monitor for GPU/CPU/RAM/VRAM.
 ## Requirements
 
 - Windows
-- NVIDIA GPU (optional, for GPU metrics)
+- NVIDIA or AMD GPU (optional)
 - Rust toolchain (for building from source)
 
 ## Installation
@@ -29,6 +29,18 @@ Lightweight Windows system monitor for GPU/CPU/RAM/VRAM.
 git clone https://github.com/Gitorian/sysmon.git
 cd sysmon
 cargo build --release
+```
+
+**Feature flags:**
+```bash
+# NVIDIA only (default)
+cargo build --release --features nvidia
+
+# AMD only
+cargo build --release --no-default-features --features amd
+
+# Both
+cargo build --release --features "nvidia,amd"
 ```
 
 ## Usage
@@ -57,9 +69,10 @@ All modes create timestamped CSV logs in the executable directory.
 
 **Architecture:**
 - CPU/RAM: Windows API (`GetSystemTimes`, `GlobalMemoryStatusEx`)
-- GPU: NVIDIA Management Library (NVML) when available
+- GPU: NVML (NVIDIA) or ADLX (AMD) with automatic detection
 - Terminal: `crossterm` with raw mode
 - Logging: 16KB buffered writes
+- Modular design: separate modules for metrics, GPU backends, display modes
 
 **Optimizations:**
 - Hot path inlining
@@ -74,5 +87,8 @@ MIT License - See [LICENSE](LICENSE)
 ## Dependencies
 
 - [nvml-wrapper](https://github.com/Cldfire/nvml-wrapper)
+- [adlx](https://crates.io/crates/adlx)
 - [crossterm](https://github.com/crossterm-rs/crossterm)
+- [chrono](https://github.com/chronotope/chrono)
+- [anyhow](https://github.com/dtolnay/anyhow)
 - Windows API
