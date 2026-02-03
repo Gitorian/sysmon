@@ -283,7 +283,7 @@ fn main() -> Result<()> {
         ResetColor
     )?;
     
-    println!("========================================\n");
+    println!("=======================================================\n");
 
     match gpu_manager.vendor() {
         gpu::GpuVendor::Nvidia => println!("✓ NVIDIA GPU detected (NVML)"),
@@ -325,7 +325,7 @@ fn main() -> Result<()> {
         run_interactive(mode, interval, &gpu_manager, cpu_tracker, logger, running, priority_name, &log_filename)?
     };
 
-    println!("\n========================================");
+    println!("\n=======================================================");
     println!("Session Summary:");
     println!("Max GPU: {}%", max.gpu);
     println!("Max CPU: {}%", max.cpu);
@@ -335,7 +335,7 @@ fn main() -> Result<()> {
         println!("⚠ GPU reached {}%+ during session", GPU_WARNING_THRESHOLD);
     }
     println!("Log saved to: {}", log_filename);
-    println!("========================================\n");
+    println!("=======================================================\n");
 
     Ok(())
 }
