@@ -179,7 +179,7 @@ fn collect_metrics(cpu_tracker: &mut CpuTracker, nvml: &Option<Nvml>) -> Metrics
         mem.dwMemoryLoad
     };
     
-    // GPU metrics via NVML
+    // GPU metrics via NVML (optional - returns 0s if not available)
     let (gpu, gpu_temp, gpu_mem, gpu_mem_total) = nvml.as_ref()
         .and_then(|n| n.device_by_index(0).ok())
         .map(|d| {
@@ -468,9 +468,13 @@ fn main() -> io::Result<()> {
         }
     };
     
-    // Initialize NVML for GPU monitoring
+    // Initialize NVML for GPU monitoring (optional - works without it)
     let nvml = Nvml::init().ok();
-    if nvml.is_some() { println!("\n✓ GPU monitoring available"); }
+    if nvml.is_some() {
+        println!("\n✓ NVIDIA GPU monitoring available");
+    } else {
+        println!("\n✓ Running without GPU metrics (NVIDIA GPU not detected)");
+    }
     println!("✓ Priority: {} ({})", priority_name, priority);
     println!("✓ Log: {}", log_filename);
     if matches!(mode, DisplayMode::Headless) {
