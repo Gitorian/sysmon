@@ -7,11 +7,11 @@
 ╚══════╝   ╚═╝   ╚══════╝╚═╝     ╚═╝ ╚═════╝ ╚═╝  ╚═══╝
 ```
 
-Lightweight Windows system monitor for GPU/CPU/RAM/VRAM
+Lightweight Windows system monitor designed for minimal latency impact on games and applications.
 
 ## Features
 
-- Below-normal thread priority to avoid interfering with other programs
+- Low-latency design: below-normal priority, 1ms timer resolution, zero-copy buffers
 - Real-time monitoring: GPU, CPU, RAM, VRAM, GPU temperature
 - Auto-detects NVIDIA or AMD GPUs, falls back to CPU/RAM only
 - Three display modes: Minimal, Graph, Headless
@@ -40,20 +40,12 @@ Lightweight Windows system monitor for GPU/CPU/RAM/VRAM
 ```bash
 git clone https://github.com/Gitorian/sysmon.git
 cd sysmon
+
+# Windows with MinGW
+Build-All-Variants.bat
+
+# Manual build
 cargo build --release
-```
-
-**Feature flags:**
-
-```bash
-# NVIDIA only (default)
-cargo build --release --features nvidia
-
-# AMD only
-cargo build --release --no-default-features --features amd
-
-# Both
-cargo build --release --features "nvidia,amd"
 ```
 
 ## Usage
@@ -90,15 +82,17 @@ All modes create timestamped CSV logs in the executable directory.
 - CPU/RAM: Windows API (`GetSystemTimes`, `GlobalMemoryStatusEx`)
 - GPU: NVML (NVIDIA) or ADLX (AMD) with automatic detection
 - Terminal: `crossterm` with raw mode
-- Logging: 16KB buffered writes
+- Logging: 16KB buffered writes with batched flushes
 - Modular design: separate modules for metrics, GPU backends, display modes
 
-**Optimizations:**
+**Low-latency optimizations:**
 
-- Hot path inlining
-- Circular buffers (no reallocation)
-- Minimal dependencies with `default-features = false`
-- Non-blocking I/O
+- Below-normal process and thread priority
+- 1ms Windows timer resolution (`timeBeginPeriod`)
+- Zero-allocation hot paths (reused buffers)
+- GPU handle caching
+- Fat LTO and aggressive compiler optimizations
+- CPU-native instruction targeting
 
 ## License
 
