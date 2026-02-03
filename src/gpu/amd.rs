@@ -1,32 +1,80 @@
-use adlx::{Adlx, AdlxGpu};
+use adlx::{helper::AdlxHelper, interface::Interface, gpu::Gpu1};
+use super::{GpuBackend, GpuVendor};
 
-pub struct AdlxContext {
-    adlx: Adlx,
+pub struct AmdBackend {
+    helper: AdlxHelper,
+    cached_gpu: Option<Gpu1>,
 }
 
-impl AdlxContext {
+impl AmdBackend {
     pub fn new() -> Option<Self> {
-        Adlx::new().ok().map(|adlx| Self { adlx })
+        let mut backend = Self { 
+            helper: AdlxHelper::new().ok()?,
+            cached_gpu: None,
+        };
+        // Initialize GPU cache on creation
+        backend.cached_gpu = backend.get_primary_gpu();
+        Some(backend)
     }
 
-    pub fn get_metrics(&self) -> (u32, u32, u32, u32) {
-        let gpus = match self.adlx.get_gpus() {
-            Ok(g) => g,
-            Err(_) => return (0, 0, 0, 0),
-        };
-
-        if gpus.is_empty() {
-            return (0, 0, 0, 0);
+    fn get_primary_gpu(&self) -> Option<Gpu1> {
+        let system = self.helper.system();
+        let gpu_list = system.gpus().ok()?;
+        if gpu_list.size() > 0 {
+            let gpu = gpu_list.at(0).ok()?;
+            gpu.cast::<Gpu1>().ok()
+        } else {
+            None
         }
+    }
+}
 
-        let gpu = &gpus[0];
+impl GpuBackend for AmdBackend {
+    fn vendor(&self) -> GpuVendor {
+        GpuVendor::Amd
+    }
 
-        let util = gpu.gpu_usage().unwrap_or(0.0) as u32;
-        let temp = gpu.gpu_temperature().unwrap_or(0.0) as u32;
+    fn get_utilization(&self) -> u32 {
+        if let Some(gpu) = &self.cached_gpu {
+            let system = self.helper.system();
+            if let Ok(perf_monitor) = system.performance_monitoring_services() {
+                if let Ok(current_metrics) = perf_monitor.current_gpu_metrics(gpu) {
+                    if let Ok(usage) = current_metrics.usage() {
+                        return usage as u32;
+                    }
+                }
+            }
+        }
+        0
+    }
 
-        let vram_mb = gpu.vram_mb().unwrap_or(0);
-        let total_vram_mb = gpu.total_vram_mb().unwrap_or(0);
+    fn get_temperature(&self) -> u32 {
+        if let Some(gpu) = &self.cached_gpu {
+            let system = self.helper.system();
+            if let Ok(perf_monitor) = system.performance_monitoring_services() {
+                if let Ok(current_metrics) = perf_monitor.current_gpu_metrics(gpu) {
+                    if let Ok(temp) = current_metrics.temperature() {
+                        return temp as u32;
+                    }
+                }
+            }
+        }
+        0
+    }
 
-        (util, temp, vram_mb, total_vram_mb)
+    fn get_memory_usage(&self) -> (u32, u32) {
+        if let Some(gpu) = &self.cached_gpu {
+            let system = self.helper.system();
+            if let Ok(perf_monitor) = system.performance_monitoring_services() {
+                if let Ok(current_metrics) = perf_monitor.current_gpu_metrics(gpu) {
+                    if let Ok(used) = current_metrics.vram() {
+                        let used_mb = used as u32;
+                        // ADLX alpha doesn't expose separate total memory yet
+                        return (used_mb, used_mb);
+                    }
+                }
+            }
+        }
+        (0, 0)
     }
 }
