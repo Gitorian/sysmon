@@ -1,53 +1,78 @@
-use anyhow::Result;
-use std::fs::File;
-use std::io::{BufWriter, Write};
+use std::fs::OpenOptions;
+use std::io::{self, Write, BufWriter};
 use std::path::PathBuf;
+use std::env;
+use anyhow::Result;
+use chrono::Local;
 
 use crate::metrics::Metrics;
 
+const LOG_BUFFER_SIZE: usize = 16 * 1024;
+
 pub struct Logger {
-    writer: BufWriter<File>,
+    writer: BufWriter<std::fs::File>,
     filename: String,
+    write_count: usize,
+    buffer: String,
 }
 
 impl Logger {
     pub fn new() -> Result<Self> {
-        let timestamp = chrono::Local::now().format("%Y%m%d_%H%M%S");
-        let filename = format!("sysmon_{}.csv", timestamp);
+        let exe_dir = env::current_exe()
+            .ok()
+            .and_then(|p| p.parent().map(|p| p.to_path_buf()))
+            .unwrap_or_else(|| PathBuf::from("."));
 
-        let mut path = std::env::current_exe()?;
-        path.pop();
-        path.push(&filename);
+        let filename = format!("sysmon_{}.csv", Local::now().format("%Y-%m-%d_%H-%M-%S"));
+        let log_path = exe_dir.join(&filename);
 
-        let file = File::create(&path)?;
-        let mut writer = BufWriter::with_capacity(16384, file);
+        let log_file = OpenOptions::new()
+            .create(true)
+            .append(true)
+            .open(&log_path)?;
 
-        writeln!(
-            writer,
-            "timestamp,gpu_util,gpu_temp,gpu_mem_mb,cpu_util,ram_util"
-        )?;
-        writer.flush()?;
+        let mut writer = BufWriter::with_capacity(LOG_BUFFER_SIZE, log_file);
+        writeln!(writer, "Timestamp,GPU%,CPU%,RAM%,GPU_Temp,GPU_Mem_MiB,GPU_Mem_%")?;
 
         Ok(Self {
             writer,
-            filename: path.to_string_lossy().to_string(),
+            filename,
+            write_count: 0,
+            buffer: String::with_capacity(128),
         })
     }
 
-    pub fn log(&mut self, m: &Metrics) -> Result<()> {
-        writeln!(
-            self.writer,
-            "{},{},{},{},{},{}",
-            chrono::Local::now().format("%Y-%m-%d %H:%M:%S"),
-            m.gpu,
-            m.gpu_temp,
-            m.gpu_mem,
-            m.cpu,
-            m.ram
-        )?;
+    pub fn log(&mut self, metrics: &Metrics) -> io::Result<()> {
+        use std::fmt::Write;
+
+        // Reuse buffer to avoid allocations
+        self.buffer.clear();
+        let _ = write!(
+            &mut self.buffer,
+            "{},{},{},{},{},{},{}",
+            Local::now().format("%Y-%m-%d %H:%M:%S"),
+            metrics.gpu,
+            metrics.cpu,
+            metrics.ram,
+            metrics.gpu_temp,
+            metrics.gpu_mem,
+            metrics.vram_percent()
+        );
+
+        writeln!(self.writer, "{}", self.buffer)?;
+
+        self.write_count += 1;
+
+        // Flush every 10 writes to balance responsiveness vs I/O overhead
+        if self.write_count >= 10 {
+            self.writer.flush()?;
+            self.write_count = 0;
+        }
+
         Ok(())
     }
 
+    #[must_use]
     pub fn filename(&self) -> &str {
         &self.filename
     }
