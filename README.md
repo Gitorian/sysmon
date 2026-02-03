@@ -27,11 +27,16 @@ Lightweight Windows system monitor for GPU/CPU/RAM/VRAM.
 ## Installation
 
 **Download binary:**
+
 1. Go to [Releases](https://github.com/Gitorian/sysmon/releases)
-2. Download `sysmon.exe`
+2. Download the version for your GPU:
+   - `sysmon-nvidia.exe` — NVIDIA only
+   - `sysmon-amd.exe` — AMD only
+   - `sysmon-dual.exe` — both (auto-detects)
 3. Run it
 
 **Build from source:**
+
 ```bash
 git clone https://github.com/Gitorian/sysmon.git
 cd sysmon
@@ -39,6 +44,7 @@ cargo build --release
 ```
 
 **Feature flags:**
+
 ```bash
 # NVIDIA only (default)
 cargo build --release --features nvidia
@@ -52,12 +58,16 @@ cargo build --release --features "nvidia,amd"
 
 ## Usage
 
-Run `sysmon.exe` and select a display mode:
+Run the executable and select a display mode:
 
 **Minimal** - Compact text display
+
 ```
-Now: GPU: 87% | CPU: 45% | VRAM:6543(68%) | T:72°C | RAM:54%
-Max: GPU: 95% | CPU: 78% | VRAM:7890(82%) | T:75°C | RAM:67%
+┌─ Current ────────────────────────────────────────────────────┐
+│ GPU: 87% │ CPU: 45% │ VRAM:6543MB (68%) │ Temp:72°C │ RAM: 54% │
+├─ Maximum ────────────────────────────────────────────────────┤
+│ GPU: 95% │ CPU: 78% │ VRAM:7890MB (82%) │ Temp:75°C │ RAM: 67% │
+└──────────────────────────────────────────────────────────────┘
 ```
 
 **Graph** - Full-screen ASCII graph with 300 data points of history
@@ -69,12 +79,14 @@ All modes create timestamped CSV logs in the executable directory.
 ## Configuration
 
 **Sampling intervals:**
+
 - Interactive modes: 1s, 2s, 5s
 - Headless mode: 1s, 2s, 5s, 10s, 30s
 
 ## Technical Details
 
 **Architecture:**
+
 - CPU/RAM: Windows API (`GetSystemTimes`, `GlobalMemoryStatusEx`)
 - GPU: NVML (NVIDIA) or ADLX (AMD) with automatic detection
 - Terminal: `crossterm` with raw mode
@@ -82,6 +94,7 @@ All modes create timestamped CSV logs in the executable directory.
 - Modular design: separate modules for metrics, GPU backends, display modes
 
 **Optimizations:**
+
 - Hot path inlining
 - Circular buffers (no reallocation)
 - Minimal dependencies with `default-features = false`
