@@ -22,18 +22,6 @@ pub fn render_graph(
 ) -> io::Result<()> {
     execute!(stdout, Clear(ClearType::All), cursor::MoveTo(0, 0))?;
 
-    // Header
-    execute!(
-        stdout,
-        SetForegroundColor(Color::Cyan),
-        SetAttribute(Attribute::Bold),
-        Print("╔════════════════════════════════════════════════╗\n"),
-        Print("║            sysmon - GRAPH VIEW                 ║\n"),
-        Print("╚════════════════════════════════════════════════╝\n"),
-        SetAttribute(Attribute::Reset),
-        ResetColor
-    )?;
-
     execute!(
         stdout,
         SetForegroundColor(Color::DarkGrey),
@@ -208,7 +196,7 @@ pub fn render_graph(
         stdout,
         SetForegroundColor(Color::White),
         SetAttribute(Attribute::Bold),
-        Print("┌─ Current ────────────────────────────────────────────────────┐\n│ "),
+        Print("┌─ Current ──────────────────────────────────────────────────────┐\n│ "),
         SetAttribute(Attribute::Reset),
         ResetColor
     )?;
@@ -249,7 +237,7 @@ pub fn render_graph(
     execute!(
         stdout,
         SetForegroundColor(Color::White),
-        Print("├─ Maximum ────────────────────────────────────────────────────┤\n│ "),
+        Print("├─ Maximum ──────────────────────────────────────────────────────┤\n│ "),
         ResetColor
     )?;
 
@@ -288,7 +276,7 @@ pub fn render_graph(
     execute!(
         stdout,
         SetForegroundColor(Color::White),
-        Print("└──────────────────────────────────────────────────────────────┘\n"),
+        Print("└────────────────────────────────────────────────────────────────┘\n"),
         ResetColor
     )?;
 
