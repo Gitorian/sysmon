@@ -1,29 +1,43 @@
 [package]
 name = "sysmon"
-version = "0.2.0"
+version = "0.3.0"
 edition = "2021"
+description = "Lightweight GPU/CPU/RAM monitoring with minimal latency impact"
+license = "MIT OR Apache-2.0"
+repository = "https://github.com/Gitorian/sysmon"
+readme = "README.md"
 
 [dependencies]
-windows = { version = "0.59", features = ["Win32_Foundation", "Win32_System_Threading", "Win32_System_SystemInformation"] }
-nvml-wrapper = { version = "0.10", optional = true }
-adlx = { version = "0.1", optional = true }
-crossterm = { version = "0.28", default-features = false }
-ctrlc = "3.4"
-chrono = { version = "0.4", default-features = false, features = ["clock"] }
+nvml-wrapper = { version = "0.10", default-features = false, optional = true }
+adlx = { version = "0.0.0-alpha.1", optional = true }
+
+crossterm = { version = "0.27", default-features = false, features = ["windows", "events"] }
+ctrlc = { version = "3.4", default-features = false }
+chrono = { version = "0.4", default-features = false, features = ["clock", "std"] }
 anyhow = "1.0"
+
+windows = { version = "0.58", features = [
+    "Win32_Foundation",
+    "Win32_System_SystemInformation",
+    "Win32_System_Threading",
+    "Win32_Media"
+] }
 
 [features]
 default = ["nvidia", "amd"]
-nvidia = ["dep:nvml-wrapper"]
-amd = ["dep:adlx"]
+nvidia = ["nvml-wrapper"]
+amd = ["adlx"]
 
 [profile.release]
 opt-level = "z"
-lto = true
+lto = "fat"
 codegen-units = 1
 strip = true
 panic = "abort"
+overflow-checks = false
+debug = false
+incremental = false
 
-[[bin]]
-name = "sysmon"
-path = "src/main.rs"
+[profile.release.package."*"]
+opt-level = "z"
+strip = true
