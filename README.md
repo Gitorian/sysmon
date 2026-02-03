@@ -5,7 +5,8 @@ Lightweight Windows system monitor for GPU/CPU/RAM/VRAM.
 ## Features
 
 - Below-normal thread priority to avoid interfering with other programs
-- Real-time monitoring: GPU, CPU, RAM, VRAM, GPU temperature
+- Real-time monitoring: GPU, CPU, RAM, VRAM, GPU temperature (NVIDIA only)
+- Runs without GPU metrics on systems where NVML is not available (e.g. AMD-only setups)
 - Three display modes: Minimal, Graph, Headless
 - Automatic CSV logging with timestamps
 - Visual warnings when GPU hits 95%+ utilization
@@ -13,7 +14,7 @@ Lightweight Windows system monitor for GPU/CPU/RAM/VRAM.
 ## Requirements
 
 - Windows
-- NVIDIA GPU
+- NVIDIA GPU (optional, for GPU metrics)
 - Rust toolchain (for building from source)
 
 ## Installation
@@ -56,7 +57,7 @@ All modes create timestamped CSV logs in the executable directory.
 
 **Architecture:**
 - CPU/RAM: Windows API (`GetSystemTimes`, `GlobalMemoryStatusEx`)
-- GPU: NVIDIA Management Library (NVML)
+- GPU: NVIDIA Management Library (NVML) when available
 - Terminal: `crossterm` with raw mode
 - Logging: 16KB buffered writes
 
