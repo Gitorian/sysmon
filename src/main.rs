@@ -125,31 +125,32 @@ fn run_headless(
     running: Arc<AtomicBool>,
 ) -> Result<Metrics> {
     let mut max = Metrics::default();
-    let mut next_log = Instant::now();
     let log_interval = Duration::from_secs(interval);
     let mut log_count = 0u32;
 
     while running.load(Ordering::Relaxed) {
+        let start = Instant::now();
+
         let m = collect_metrics(&mut cpu_tracker, gpu_manager);
         max.update_max(&m);
+        logger.log(&m)?;
 
-        if Instant::now() >= next_log {
-            logger.log(&m)?;
-            log_count += 1;
+        log_count += 1;
 
-            // Print status every 10 logs
-            if log_count % 10 == 0 {
-                println!(
-                    "[{}] GPU:{}% CPU:{}% RAM:{}% T:{}°C",
-                    chrono::Local::now().format("%H:%M:%S"),
-                    m.gpu, m.cpu, m.ram, m.gpu_temp
-                );
-            }
-
-            next_log += log_interval;
+        // Print status every 10 logs
+        if log_count % 10 == 0 {
+            println!(
+                "[{}] GPU:{}% CPU:{}% RAM:{}% T:{}°C",
+                chrono::Local::now().format("%H:%M:%S"),
+                m.gpu, m.cpu, m.ram, m.gpu_temp
+            );
         }
 
-        std::thread::sleep(Duration::from_millis(COLLECTION_INTERVAL_MS));
+        // Sleep for remaining time to maintain accurate intervals
+        let elapsed = start.elapsed();
+        if elapsed < log_interval {
+            std::thread::sleep(log_interval - elapsed);
+        }
     }
 
     Ok(max)
@@ -173,9 +174,11 @@ fn run_interactive(
     let mut next_update = Instant::now();
     let update_interval = Duration::from_secs(interval);
 
-    // Only allocate history for graph mode
+    // Pre-allocate history with exact capacity for graph mode
     let mut history = if matches!(mode, DisplayMode::Graph) {
-        VecDeque::with_capacity(MAX_HISTORY_POINTS)
+        let mut h = VecDeque::with_capacity(MAX_HISTORY_POINTS + 1);
+        h.reserve_exact(MAX_HISTORY_POINTS);
+        h
     } else {
         VecDeque::new()
     };
@@ -250,8 +253,21 @@ fn run_interactive(
 
 fn main() -> Result<()> {
     use windows::Win32::System::Threading::{
-        GetCurrentThread, SetThreadPriority, GetThreadPriority, THREAD_PRIORITY_BELOW_NORMAL
+        GetCurrentThread, SetThreadPriority, GetThreadPriority,
+        GetCurrentProcess, SetPriorityClass,
+        THREAD_PRIORITY_BELOW_NORMAL, BELOW_NORMAL_PRIORITY_CLASS
     };
+    use windows::Win32::Media::timeBeginPeriod;
+
+    // Set 1ms timer resolution for accurate sleep intervals
+    unsafe {
+        let _ = timeBeginPeriod(1);
+    }
+
+    // Set process priority to below normal
+    unsafe {
+        let _ = SetPriorityClass(GetCurrentProcess(), BELOW_NORMAL_PRIORITY_CLASS);
+    }
 
     // Set thread priority to below normal
     unsafe {
