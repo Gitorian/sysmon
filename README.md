@@ -66,11 +66,6 @@ All modes create timestamped CSV logs in the executable directory.
 - Minimal dependencies with `default-features = false`
 - Non-blocking I/O
 
-**Performance:**
-- CPU usage: <0.1%
-- Memory: ~2-5 MB
-- Thread priority: Below Normal (-1)
-
 ## License
 
 MIT License - See [LICENSE](LICENSE)
