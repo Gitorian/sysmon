@@ -40,11 +40,6 @@ Lightweight Windows system monitor designed for minimal latency impact on games 
 ```bash
 git clone https://github.com/Gitorian/sysmon.git
 cd sysmon
-
-# Windows with MinGW
-Build-All-Variants.bat
-
-# Manual build
 cargo build --release
 ```
 
