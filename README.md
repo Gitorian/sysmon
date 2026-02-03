@@ -1,6 +1,6 @@
 # sysmon
 
-Lightweight system monitor for Windows. Tracks GPU, CPU, RAM, and VRAM usage with minimal performance impact.
+Lightweight Windows system monitor for GPU/CPU/RAM/VRAM.
 
 ## Features
 
