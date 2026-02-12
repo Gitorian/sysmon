@@ -196,7 +196,7 @@ pub fn render_graph(
         stdout,
         SetForegroundColor(Color::White),
         SetAttribute(Attribute::Bold),
-        Print("┌─ Current ──────────────────────────────────────────────────────┐\n│ "),
+        Print("┌─ Current ──────────────────────────────────────────────────────────────┐\n│ "),
         SetAttribute(Attribute::Reset),
         ResetColor
     )?;
@@ -237,7 +237,7 @@ pub fn render_graph(
     execute!(
         stdout,
         SetForegroundColor(Color::White),
-        Print("├─ Maximum ──────────────────────────────────────────────────────┤\n│ "),
+        Print("├─ Maximum ──────────────────────────────────────────────────────────────┤\n│ "),
         ResetColor
     )?;
 

@@ -43,7 +43,7 @@ pub fn render_minimal(
         stdout,
         SetForegroundColor(Color::White),
         SetAttribute(Attribute::Bold),
-        Print("┌─ Current ──────────────────────────────────────────────────────┐\n│ "),
+        Print("┌─ Current ──────────────────────────────────────────────────────────────┐\n│ "),
         SetAttribute(Attribute::Reset),
         ResetColor
     )?;
@@ -84,7 +84,7 @@ pub fn render_minimal(
     execute!(
         stdout,
         SetForegroundColor(Color::White),
-        Print("├─ Maximum ──────────────────────────────────────────────────────┤\n│ "),
+        Print("├─ Maximum ──────────────────────────────────────────────────────────────┤\n│ "),
         ResetColor
     )?;
 

@@ -1,3 +1,5 @@
+// terminal ui modes: minimal, graph, and headless
+
 mod minimal;
 mod graph;
 
@@ -13,6 +15,7 @@ pub enum DisplayMode {
     Headless,
 }
 
+// cleanup terminal on exit
 pub struct TerminalGuard;
 
 impl TerminalGuard {
