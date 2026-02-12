@@ -7,7 +7,19 @@
 ╚══════╝   ╚═╝   ╚══════╝╚═╝     ╚═╝ ╚═════╝ ╚═╝  ╚═══╝
 ```
 
+# sysmon
+
 Lightweight Windows system monitor designed for minimal latency impact on games and applications.
+
+## Changes in v0.3.1
+
+### Critical Fixes
+
+- **Fixed system-wide timer pollution**: Added `TimerGuard` to properly call `timeEndPeriod` on exit, preventing permanent 1ms timer resolution affecting other applications
+- **Optimized input polling**: Changed from 10×100ms polls to single 1s timeout, reducing unnecessary CPU cycles in hot loop
+- **Fixed VRAM percentage calculation**: Max VRAM now correctly displays percentage instead of 0%
+- **Updated dependencies**: Latest versions of crossterm (0.29), nvml-wrapper (0.12), windows (0.62)
+- **Performance optimizations**: Using opt-level 2 for balanced performance and binary size
 
 ## Features
 
@@ -26,21 +38,18 @@ Lightweight Windows system monitor designed for minimal latency impact on games 
 
 ## Installation
 
-**Download binary:**
-
-1. Go to [Releases](https://github.com/Gitorian/sysmon/releases)
-2. Download the version for your GPU:
-   - `sysmon-nvidia.exe` — NVIDIA only
-   - `sysmon-amd.exe` — AMD only
-   - `sysmon-dual.exe` — both (auto-detects)
-3. Run it
-
 **Build from source:**
 
 ```bash
 git clone https://github.com/Gitorian/sysmon.git
 cd sysmon
+
+# Build with both GPU backends
 cargo build --release
+
+# Or build single-vendor variants (smaller binaries)
+cargo build --release --no-default-features --features nvidia  # NVIDIA only
+cargo build --release --no-default-features --features amd     # AMD only
 ```
 
 ## Usage
@@ -83,11 +92,12 @@ All modes create timestamped CSV logs in the executable directory.
 **Low-latency optimizations:**
 
 - Below-normal process and thread priority
-- 1ms Windows timer resolution (`timeBeginPeriod`)
+- 1ms Windows timer resolution (`timeBeginPeriod`) with proper cleanup
 - Zero-allocation hot paths (reused buffers)
 - GPU handle caching
 - Fat LTO and aggressive compiler optimizations
-- CPU-native instruction targeting
+- Optimized input polling (reduced syscalls)
+- Balanced performance compilation (opt-level 2)
 
 ## License
 
