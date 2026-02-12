@@ -1,3 +1,5 @@
+// auto-detect gpu vendor (nvidia or amd) and init appropriate backend
+
 #[cfg(feature = "nvidia")]
 mod nvidia;
 #[cfg(feature = "amd")]
@@ -20,7 +22,7 @@ pub struct GpuManager {
 
 impl GpuManager {
     pub fn auto_detect() -> Self {
-        // Try NVIDIA first
+        // try nvidia first
         #[cfg(feature = "nvidia")]
         if let Some(nvml) = nvidia::NvmlContext::new() {
             return Self {
@@ -31,7 +33,7 @@ impl GpuManager {
             };
         }
 
-        // Try AMD
+        // fallback to amd
         #[cfg(feature = "amd")]
         if let Some(adlx) = amd::AdlxContext::new() {
             return Self {
@@ -42,7 +44,7 @@ impl GpuManager {
             };
         }
 
-        // No GPU detected
+        // no gpu found
         Self {
             vendor: GpuVendor::Unknown,
             #[cfg(feature = "nvidia")]
