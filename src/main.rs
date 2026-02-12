@@ -1,4 +1,4 @@
-// sysmon - Lightweight system monitor for Windows
+// sysmon - lightweight system monitor for windows
 // https://github.com/Gitorian/sysmon
 
 mod metrics;
@@ -25,15 +25,29 @@ use display::{DisplayMode, render_minimal, render_graph, TerminalGuard};
 use logging::Logger;
 
 const COLLECTION_INTERVAL_MS: u64 = 1000;
-const INPUT_POLL_INTERVAL_MS: u64 = 100;
 const MAX_HISTORY_POINTS: usize = 300;
 const GPU_WARNING_THRESHOLD: u32 = 95;
 
+// cleanup 1ms timer on exit so we don't mess up the system
+struct TimerGuard;
+
+impl TimerGuard {
+    fn new() -> Self {
+        use windows::Win32::Media::timeBeginPeriod;
+        unsafe { let _ = timeBeginPeriod(1); }
+        Self
+    }
+}
+
+impl Drop for TimerGuard {
+    fn drop(&mut self) {
+        use windows::Win32::Media::timeEndPeriod;
+        unsafe { let _ = timeEndPeriod(1); }
+    }
+}
+
 fn print_menu(text: &str, color: crossterm::style::Color) -> io::Result<()> {
-    execute!(
-        io::stdout(),
-        SetForegroundColor(color)
-    )?;
+    execute!(io::stdout(), SetForegroundColor(color))?;
     println!("{text}");
     execute!(io::stdout(), ResetColor)?;
     Ok(())
@@ -107,14 +121,7 @@ fn collect_metrics(cpu_tracker: &mut CpuTracker, gpu_manager: &GpuManager) -> Me
     let ram = metrics::get_ram_usage();
     let (gpu, gpu_temp, gpu_mem, gpu_mem_total) = gpu_manager.get_metrics();
 
-    Metrics {
-        cpu,
-        ram,
-        gpu,
-        gpu_temp,
-        gpu_mem,
-        gpu_mem_total,
-    }
+    Metrics { cpu, ram, gpu, gpu_temp, gpu_mem, gpu_mem_total }
 }
 
 fn run_headless(
@@ -134,10 +141,9 @@ fn run_headless(
         let m = collect_metrics(&mut cpu_tracker, gpu_manager);
         max.update_max(&m);
         logger.log(&m)?;
-
         log_count += 1;
 
-        // Print status every 10 logs
+        // status update every 10 logs
         if log_count % 10 == 0 {
             println!(
                 "[{}] GPU:{}% CPU:{}% RAM:{}% T:{}°C",
@@ -146,7 +152,7 @@ fn run_headless(
             );
         }
 
-        // Sleep for remaining time to maintain accurate intervals
+        // keep intervals consistent
         let elapsed = start.elapsed();
         if elapsed < log_interval {
             std::thread::sleep(log_interval - elapsed);
@@ -174,11 +180,9 @@ fn run_interactive(
     let mut next_update = Instant::now();
     let update_interval = Duration::from_secs(interval);
 
-    // Pre-allocate history with exact capacity for graph mode
+    // graph mode needs history buffer
     let mut history = if matches!(mode, DisplayMode::Graph) {
-        let mut h = VecDeque::with_capacity(MAX_HISTORY_POINTS + 1);
-        h.reserve_exact(MAX_HISTORY_POINTS);
-        h
+        VecDeque::with_capacity(MAX_HISTORY_POINTS)
     } else {
         VecDeque::new()
     };
@@ -188,11 +192,9 @@ fn run_interactive(
         max.update_max(&m);
 
         let warning = m.gpu >= GPU_WARNING_THRESHOLD;
-        if warning {
-            gpu95_hit = true;
-        }
+        if warning { gpu95_hit = true; }
 
-        // Store history for graph mode
+        // track history for graph
         if matches!(mode, DisplayMode::Graph) {
             if history.len() >= MAX_HISTORY_POINTS {
                 history.pop_front();
@@ -200,30 +202,16 @@ fn run_interactive(
             history.push_back(m);
         }
 
-        // Update display at configured interval
+        // render on interval
         if Instant::now() >= next_update {
             match mode {
                 DisplayMode::Minimal => render_minimal(
-                    &mut stdout,
-                    &m,
-                    &max,
-                    warning,
-                    gpu95_hit,
-                    log_filename,
-                    interval,
-                    priority_name,
-                    gpu_manager.vendor_name(),
+                    &mut stdout, &m, &max, warning, gpu95_hit,
+                    log_filename, interval, priority_name, gpu_manager.vendor_name(),
                 )?,
                 DisplayMode::Graph => render_graph(
-                    &mut stdout,
-                    &m,
-                    &max,
-                    gpu95_hit,
-                    &history,
-                    log_filename,
-                    interval,
-                    priority_name,
-                    gpu_manager.vendor_name(),
+                    &mut stdout, &m, &max, gpu95_hit, &history,
+                    log_filename, interval, priority_name, gpu_manager.vendor_name(),
                 )?,
                 _ => {}
             }
@@ -232,18 +220,13 @@ fn run_interactive(
             next_update += update_interval;
         }
 
-        // Poll for Ctrl+C
-        for _ in 0..(COLLECTION_INTERVAL_MS / INPUT_POLL_INTERVAL_MS) {
-            if event::poll(Duration::from_millis(INPUT_POLL_INTERVAL_MS))? {
-                if let Event::Key(key) = event::read()? {
-                    if key.code == KeyCode::Char('c') && key.modifiers.contains(KeyModifiers::CONTROL) {
-                        running.store(false, Ordering::Relaxed);
-                        break;
-                    }
+        // poll input once per second instead of 10x100ms
+        if event::poll(Duration::from_millis(COLLECTION_INTERVAL_MS))? {
+            if let Event::Key(key) = event::read()? {
+                if key.code == KeyCode::Char('c') && key.modifiers.contains(KeyModifiers::CONTROL) {
+                    running.store(false, Ordering::Relaxed);
+                    break;
                 }
-            }
-            if !running.load(Ordering::Relaxed) {
-                break;
             }
         }
     }
@@ -257,20 +240,11 @@ fn main() -> Result<()> {
         GetCurrentProcess, SetPriorityClass,
         THREAD_PRIORITY_BELOW_NORMAL, BELOW_NORMAL_PRIORITY_CLASS
     };
-    use windows::Win32::Media::timeBeginPeriod;
 
-    // Set 1ms timer resolution for accurate sleep intervals
-    unsafe {
-        let _ = timeBeginPeriod(1);
-    }
+    let _timer_guard = TimerGuard::new();
 
-    // Set process priority to below normal
     unsafe {
         let _ = SetPriorityClass(GetCurrentProcess(), BELOW_NORMAL_PRIORITY_CLASS);
-    }
-
-    // Set thread priority to below normal
-    unsafe {
         let _ = SetThreadPriority(GetCurrentThread(), THREAD_PRIORITY_BELOW_NORMAL);
     }
 
@@ -278,7 +252,6 @@ fn main() -> Result<()> {
     let priority_name = get_priority_name(priority);
     let gpu_manager = GpuManager::auto_detect();
 
-    // ASCII art banner
     execute!(
         io::stdout(),
         SetForegroundColor(crossterm::style::Color::Cyan),
@@ -310,7 +283,6 @@ fn main() -> Result<()> {
     println!();
     let mode = select_display_mode()?;
     let interval = select_interval(&mode)?;
-
     println!("✓ Priority: {priority_name} ({priority})");
 
     let logger = Logger::new()?;
@@ -326,7 +298,7 @@ fn main() -> Result<()> {
         std::thread::sleep(Duration::from_millis(500));
     }
 
-    // Initialize CPU tracker with one reading
+    // warm up cpu tracker
     let mut cpu_tracker = CpuTracker::new();
     cpu_tracker.get_cpu_usage();
     std::thread::sleep(Duration::from_millis(100));

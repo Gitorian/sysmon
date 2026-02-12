@@ -1,5 +1,6 @@
+use windows::Win32::Foundation::FILETIME;
 use windows::Win32::System::SystemInformation::{GlobalMemoryStatusEx, MEMORYSTATUSEX};
-use windows::Win32::System::Threading::{GetSystemTimes, FILETIME};
+use windows::Win32::System::Threading::GetSystemTimes;
 
 #[derive(Copy, Clone, Default)]
 pub struct Metrics {
@@ -7,7 +8,7 @@ pub struct Metrics {
     pub ram: u32,
     pub gpu: u32,
     pub gpu_temp: u32,
-    pub gpu_mem: u32,
+    pub gpu_mem: u32,  // in MB
     pub gpu_mem_total: u32,
 }
 
@@ -27,6 +28,10 @@ impl Metrics {
         self.gpu = self.gpu.max(other.gpu);
         self.gpu_temp = self.gpu_temp.max(other.gpu_temp);
         self.gpu_mem = self.gpu_mem.max(other.gpu_mem);
+        // update total when we hit a new max
+        if other.gpu_mem > self.gpu_mem || self.gpu_mem_total == 0 {
+            self.gpu_mem_total = other.gpu_mem_total;
+        }
     }
 }
 
@@ -38,11 +43,7 @@ pub struct CpuTracker {
 
 impl CpuTracker {
     pub fn new() -> Self {
-        Self {
-            last_idle: 0,
-            last_kernel: 0,
-            last_user: 0,
-        }
+        Self { last_idle: 0, last_kernel: 0, last_user: 0 }
     }
 
     pub fn get_cpu_usage(&mut self) -> u32 {
@@ -55,9 +56,7 @@ impl CpuTracker {
                 Some(&mut idle as *mut _),
                 Some(&mut kernel as *mut _),
                 Some(&mut user as *mut _),
-            )
-            .is_err()
-            {
+            ).is_err() {
                 return 0;
             }
 
@@ -74,9 +73,7 @@ impl CpuTracker {
             self.last_user = user_time;
 
             let sys_delta = kernel_delta + user_delta;
-            if sys_delta == 0 {
-                return 0;
-            }
+            if sys_delta == 0 { return 0; }
 
             let usage = (((sys_delta - idle_delta) * 100) / sys_delta) as u32;
             usage.min(100)

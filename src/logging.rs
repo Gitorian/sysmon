@@ -45,25 +45,20 @@ impl Logger {
     pub fn log(&mut self, metrics: &Metrics) -> io::Result<()> {
         use std::fmt::Write;
 
-        // Reuse buffer to avoid allocations
+        // reuse string buffer to avoid allocations
         self.buffer.clear();
         let _ = write!(
             &mut self.buffer,
             "{},{},{},{},{},{},{}",
             Local::now().format("%Y-%m-%d %H:%M:%S"),
-            metrics.gpu,
-            metrics.cpu,
-            metrics.ram,
-            metrics.gpu_temp,
-            metrics.gpu_mem,
-            metrics.vram_percent()
+            metrics.gpu, metrics.cpu, metrics.ram,
+            metrics.gpu_temp, metrics.gpu_mem, metrics.vram_percent()
         );
 
         writeln!(self.writer, "{}", self.buffer)?;
-
         self.write_count += 1;
 
-        // Flush every 10 writes to balance responsiveness vs I/O overhead
+        // flush every 10 writes to balance performance vs responsiveness
         if self.write_count >= 10 {
             self.writer.flush()?;
             self.write_count = 0;
